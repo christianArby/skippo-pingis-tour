@@ -104,6 +104,28 @@ Skriptet:
 
 Kör det igen när nya personer börjar.
 
+## Slack-notiser i #pingis
+
+När en match rapporteras postas resultatet + aktuell topp-5 till #pingis-kanalen i Slack — drivs av en `pg_net`-baserad trigger på `matches`-tabellen.
+
+### Setup
+
+1. https://api.slack.com/apps → din app → **Incoming Webhooks** → toggla **On** → **Add New Webhook to Workspace** → välj **#pingis** → kopiera webhook-URL.
+2. I `supabase/schema.sql`, ersätt placeholder-URL:en `https://hooks.slack.com/services/REPLACE/WITH/YOUR_URL` i `notify_slack_match()`-funktionen.
+3. Kör hela `schema.sql` (eller bara `notify_slack_match`-blocket) i Supabase SQL Editor.
+
+Slack-meddelandet ser ut såhär:
+```
+🏓 Christian def. Felix  (+16 / −16 Elo)
+
+Aktuell topp 5
+1. Anna — 1287 Elo  (12V-3F)
+2. Bosse — 1198 Elo  (10V-5F)
+...
+```
+
+Ångrade matcher (via `undo_match` RPC) skickar ingen notis — triggern fyrar bara på INSERT.
+
 ## Hur Elo funkar
 
 Vinnaren får poäng baserat på motståndarens rating:

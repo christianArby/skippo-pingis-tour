@@ -179,6 +179,74 @@ create policy "matches_select_all" on matches for select to anon, authenticated 
 create policy "matches_insert_all" on matches for insert to anon, authenticated with check (true);
 
 -- =====================================================================
+-- Slack-notis: posta till #pingis när en match rapporteras
+-- pg_net.http_post köar requesten i en bakgrundsworker, så match-inserts
+-- blockeras inte om Slack är nere. Webhook-URL:en ligger inbakad i
+-- funktionskroppen — funktionsdefinitioner är inte exponerade via
+-- PostgREST, så anon-nyckeln kan inte läsa ut den.
+--
+-- Manuell setup-steg: byt placeholder-URL:en nedan mot din riktiga
+-- Slack Incoming Webhook och kör i Supabase SQL Editor.
+-- =====================================================================
+
+create extension if not exists pg_net;
+
+create or replace function notify_slack_match()
+returns trigger
+language plpgsql
+security definer
+as $$
+declare
+  webhook_url constant text := 'https://hooks.slack.com/services/REPLACE/WITH/YOUR_URL';
+  winner_name text;
+  loser_name  text;
+  delta int;
+  top5_text   text;
+begin
+  if webhook_url like '%REPLACE%' then
+    return NEW;
+  end if;
+
+  select name into winner_name from players where id = NEW.winner_id;
+  select name into loser_name  from players where id = NEW.loser_id;
+  delta := NEW.winner_rating_after - NEW.winner_rating_before;
+
+  select string_agg(
+    format('%s. *%s* — %s Elo  (%sV-%sF)', rn, name, rating, wins, losses),
+    E'\n' order by rn
+  )
+  into top5_text
+  from (
+    select row_number() over (order by rating desc, name asc) as rn,
+           name, rating, wins, losses
+    from players
+    order by rating desc, name asc
+    limit 5
+  ) s;
+
+  perform net.http_post(
+    url := webhook_url,
+    body := jsonb_build_object(
+      'text',
+      format(
+        E'🏓 *%s* def. *%s*  (+%s / −%s Elo)\n\n*Aktuell topp 5*\n%s',
+        winner_name, loser_name, delta, delta,
+        coalesce(top5_text, '_(inga spelare ännu)_')
+      )
+    ),
+    headers := '{"Content-Type":"application/json"}'::jsonb
+  );
+
+  return NEW;
+end;
+$$;
+
+drop trigger if exists trg_notify_slack_match on matches;
+create trigger trg_notify_slack_match
+after insert on matches
+for each row execute function notify_slack_match();
+
+-- =====================================================================
 -- Realtime: publicera tabellerna så klienten kan prenumerera
 -- =====================================================================
 
