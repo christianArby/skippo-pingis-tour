@@ -40,6 +40,7 @@
     <nav class="tabs" aria-label="Vyer">
       <a id="tab-ladder"  class="tab" href="#ladder">Rankings</a>
       <a id="tab-history" class="tab" href="#history">Results</a>
+      <a id="tab-rules"   class="tab" href="#rules">Rules</a>
     </nav>
   </section>
 
@@ -88,6 +89,56 @@
 
         <div id="history-empty" class="empty-state" hidden>
           Inga matcher rapporterade än.
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Rules ===== -->
+    <section id="view-rules" class="view" hidden>
+      <div class="card">
+        <div class="card-header">
+          <h2>Rules</h2>
+        </div>
+        <div class="rules-body">
+
+          <article class="rule-block">
+            <h3>Rankning</h3>
+            <p>Alla startar på <strong>1000 Elo</strong>. Vid jämn match ger en vinst <strong>±16 poäng</strong>. Slår du någon med högre rating får du mer — vinner du mot någon lägre får du mindre. Förluster mot underdogs straffar hårdare än förluster mot favoriter.</p>
+          </article>
+
+          <article class="rule-block">
+            <h3>Utmaning</h3>
+            <p>Fri utmaning — vem som helst får utmana vem som helst, när som helst. Gå förbi någons skrivbord, peka på pingisbordet, klart. Ingen behöver tacka ja, men det är gott form att göra det om man har tid.</p>
+          </article>
+
+          <article class="rule-block">
+            <h3>Matchformat</h3>
+            <p><strong>Best of 3</strong> set, 11 poäng per set. Byt serve var 2:a poäng. Vid 10-10 spelas spel-poäng — turas om varje serve och vinn med 2.</p>
+            <p>I stegen räknas bara <em>vem</em> som vann — inte set-resultat. Sköt rapporteringen för full Elo-effekt.</p>
+          </article>
+
+          <article class="rule-block">
+            <h3>Service</h3>
+            <p>Bollen ska kastas <strong>minst 16 cm rakt upp</strong> från öppen handflata och träffas på vägen ner. Servar du måste bollen studsa en gång på din sida och en gång på motståndarens. Nuddar bollen nätet men landar rätt → <strong>let</strong>, om-serve.</p>
+          </article>
+
+          <article class="rule-block">
+            <h3>Rapportering</h3>
+            <p>Öppen rapportering — vem som helst kan logga matchen. Klicka på <em>🏓 Rapportera match</em>, välj båda spelarna, klicka på vinnaren. Klart.</p>
+            <p>Helst rapporterar förloraren — det bygger karaktär.</p>
+          </article>
+
+          <article class="rule-block">
+            <h3>Ångra</h3>
+            <p>En match kan <strong>ångras inom 5 minuter</strong> — t.ex. om fel knapp trycks. Bara den <strong>senaste</strong> matchen kan ångras (annars blir Elo-historiken inkonsistent).</p>
+            <p>Äldre fel: prata med Christian, så fixar han i Supabase.</p>
+          </article>
+
+          <article class="rule-block">
+            <h3>Etikett</h3>
+            <p>Det här är kontoret. Hög intensitet är välkommen, men håll det sportsligt — inga elaka kommentarer, ingen mobil under match, inget gnäll på domarbeslut (det finns inga domare). Skaka hand efteråt.</p>
+          </article>
+
         </div>
       </div>
     </section>

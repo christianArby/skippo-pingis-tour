@@ -508,6 +508,45 @@ button { font-family: inherit; cursor: pointer; }
 .status[data-tone="error"]   { color: var(--red); }
 .status[data-tone="success"] { color: var(--win); }
 
+/* ---------- Rules ---------- */
+
+.rules-body {
+  padding: 4px 24px 12px;
+}
+
+.rule-block {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+.rule-block:last-child { border-bottom: none; }
+
+.rule-block h3 {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--navy);
+  margin: 0 0 8px;
+}
+
+.rule-block p {
+  margin: 0 0 8px;
+  color: var(--ink);
+  line-height: 1.55;
+}
+.rule-block p:last-child { margin-bottom: 0; }
+.rule-block em {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+@media (max-width: 560px) {
+  .rules-body { padding: 4px 16px 8px; }
+  .rule-block { padding: 14px 0; }
+}
+
 /* ---------- History ---------- */
 
 .history-list {

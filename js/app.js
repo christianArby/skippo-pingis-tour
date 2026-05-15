@@ -2,11 +2,13 @@ import { supabase } from './supabase.js';
 import * as ladder from './ladder.js';
 import * as report from './report.js';
 import * as historyView from './history.js';
+import * as rulesView from './rules.js';
 import { openAddPlayerDialog, invalidatePlayerCache } from './players.js';
 
 const VIEWS = {
   ladder:  { render: ladder.render,      section: 'view-ladder',  tab: 'tab-ladder' },
   history: { render: historyView.render, section: 'view-history', tab: 'tab-history' },
+  rules:   { render: rulesView.render,   section: 'view-rules',   tab: 'tab-rules' },
 };
 
 function currentView() {
