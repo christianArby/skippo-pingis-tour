@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Skippo Pingis Tour</title>
+  <meta name="description" content="Skippos officiella pingisranking - rapportera matcher och se stegen live." />
+
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🏓%3C/text%3E%3C/svg%3E" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+
+  <script>
+    window.SUPABASE_CONFIG = {
+      url:     'https://rybaqqbmtlmbspjaahtk.supabase.co',
+      anonKey: 'sb_publishable_0CX66EukrVy3tVLNxMmRAQ_f54UNxGo'
+    };
+  </script>
+</head>
+
+<body>
+
+  <!-- ===== Brand band ===== -->
+  <header class="brand-band">
+    <div class="brand-band-inner">
+      <span class="brand-mark"><span class="red-dot"></span>SKIPPO PINGIS TOUR</span>
+      <span class="brand-tag">Office Singles Ranking</span>
+    </div>
+  </header>
+
+  <!-- ===== Hero ===== -->
+  <section class="hero">
+    <div class="hero-inner">
+      <p>Officiell kontorsranking · uppdateras live</p>
+    </div>
+    <nav class="tabs" aria-label="Vyer">
+      <a id="tab-ladder"  class="tab" href="#ladder">Rankings</a>
+      <a id="tab-history" class="tab" href="#history">Results</a>
+    </nav>
+  </section>
+
+  <div id="boot-error" hidden></div>
+
+  <main class="page">
+
+    <!-- ===== Stege ===== -->
+    <section id="view-ladder" class="view" hidden>
+      <div class="card">
+        <div class="card-header">
+          <h2>Singles Rankings</h2>
+          <div class="card-actions">
+            <button type="button" class="btn" data-action="add-player">+ Ny spelare</button>
+            <button type="button" class="btn btn--accent" data-action="report-match">🏓 Rapportera match</button>
+          </div>
+        </div>
+
+        <div class="ladder-head" role="row">
+          <span>Rank</span>
+          <span>Spelare</span>
+          <span class="col-center">V</span>
+          <span class="col-center">F</span>
+          <span class="col-center col-winrate">Win %</span>
+          <span class="col-right">Elo</span>
+        </div>
+
+        <ol id="ladder-list" class="ladder-list"></ol>
+
+        <div id="ladder-empty" class="empty-state" hidden>
+          <span class="emoji">🏓</span>
+          Inga spelare än. Tryck på <strong>+ Ny spelare</strong> för att börja.
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Historik ===== -->
+    <section id="view-history" class="view" hidden>
+      <div class="card">
+        <div class="card-header">
+          <h2>Latest results</h2>
+          <button type="button" class="btn btn--accent" data-action="report-match">🏓 Rapportera match</button>
+        </div>
+
+        <ul id="history-list" class="history-list"></ul>
+
+        <div id="history-empty" class="empty-state" hidden>
+          Inga matcher rapporterade än.
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== Report-match-dialog ===== -->
+  <dialog id="report-dialog" class="report-dialog">
+    <div class="dialog-head">
+      <h3 class="dialog-title">Rapportera match</h3>
+      <button id="report-close" type="button" class="dialog-close" aria-label="Stäng">✕</button>
+    </div>
+
+    <div class="report-body">
+      <ol class="steps">
+        <li><span class="step-num">1</span> Välj de två spelarna</li>
+        <li><span class="step-num">2</span> Klicka på <em>vinnaren</em></li>
+      </ol>
+
+      <form id="report-form" novalidate>
+        <div class="report-grid">
+          <div class="player-card">
+            <label for="report-player-a">Spelare A</label>
+            <select id="report-player-a"></select>
+            <button id="report-winner-a" type="button" class="winner-btn">
+              <span class="trophy" aria-hidden="true">🏆</span>
+              <span class="winner-btn-text">Spelare A vann</span>
+            </button>
+          </div>
+
+          <div class="report-vs-badge" aria-hidden="true">vs</div>
+
+          <div class="player-card">
+            <label for="report-player-b">Spelare B</label>
+            <select id="report-player-b"></select>
+            <button id="report-winner-b" type="button" class="winner-btn">
+              <span class="trophy" aria-hidden="true">🏆</span>
+              <span class="winner-btn-text">Spelare B vann</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="report-preview" class="report-preview" hidden></div>
+      </form>
+
+      <p id="report-status" class="status" data-tone=""></p>
+
+      <div id="report-empty" class="empty-state" hidden>
+        Du behöver minst två spelare för att rapportera en match.<br />
+        Stäng dialogen och tryck <strong>+ Ny spelare</strong>.
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ===== Match-result-overlay ===== -->
+  <div id="result-overlay" class="result-overlay" hidden aria-hidden="true">
+    <div class="result-card" role="dialog" aria-modal="true" aria-labelledby="result-heading">
+      <div class="result-trophy" aria-hidden="true">🏆</div>
+      <div class="result-eyebrow" id="result-heading">Match-resultat</div>
+
+      <div class="result-side result-side--winner">
+        <div class="result-avatar" id="result-winner-avatar" aria-hidden="true"></div>
+        <div class="result-name" id="result-winner-name"></div>
+        <div class="result-delta result-delta--pos" id="result-winner-delta">+0</div>
+      </div>
+
+      <div class="result-def">def.</div>
+
+      <div class="result-side result-side--loser">
+        <div class="result-avatar result-avatar--small" id="result-loser-avatar" aria-hidden="true"></div>
+        <div class="result-name" id="result-loser-name"></div>
+        <div class="result-delta result-delta--neg" id="result-loser-delta">−0</div>
+      </div>
+
+      <div class="result-actions">
+        <button id="result-undo" type="button" class="btn btn--ghost">↩ Ångra</button>
+        <button id="result-go"   type="button" class="btn btn--primary">Visa ranking →</button>
+      </div>
+      <div class="result-footnote" id="result-footnote">Klicka utanför för att stänga</div>
+    </div>
+  </div>
+
+  <!-- ===== Add-player-dialog ===== -->
+  <dialog id="add-player-dialog">
+    <h3 class="dialog-title">Lägg till spelare</h3>
+    <form id="add-player-form" class="dialog-form" novalidate>
+      <input id="add-player-name" type="text" placeholder="Namn" autocomplete="off" maxlength="40" required />
+      <p id="add-player-error" class="dialog-error" aria-live="polite"></p>
+      <div class="dialog-actions">
+        <button id="add-player-cancel" type="button" class="btn btn--ghost">Avbryt</button>
+        <button type="submit" class="btn btn--primary">Spara</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer class="app-footer">
+    <div class="app-footer-inner">
+      <span class="footer-tag">Office Tour · Built at</span>
+      <a href="https://www.skippo.se" target="_blank" rel="noopener noreferrer" aria-label="Skippo">
+        <img src="assets/skippo-logo.svg" alt="Skippo" class="skippo-logo" />
+      </a>
+    </div>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
