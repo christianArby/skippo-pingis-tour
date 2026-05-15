@@ -11,7 +11,7 @@ export async function render() {
     .from('players')
     .select('*')
     .order('rating', { ascending: false })
-    .order('wins', { ascending: false });
+    .order('name', { ascending: true });
 
   if (error) {
     root.innerHTML = `<li class="error-row">Kunde inte hämta stegen: ${escapeHtml(error.message)}</li>`;
