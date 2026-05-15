@@ -227,33 +227,6 @@ button { font-family: inherit; cursor: pointer; }
 
 .btn--xl { padding: 14px 22px; font-size: 0.95rem; letter-spacing: 0.1em; }
 
-/* ---------- Welcome banner ---------- */
-
-.welcome-banner {
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-left: 4px solid var(--yellow);
-  border-radius: 4px;
-  padding: 18px 22px 16px;
-  margin-bottom: 18px;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
-}
-
-.welcome-quote {
-  font-size: 1.02rem;
-  line-height: 1.55;
-  color: var(--ink);
-}
-
-.welcome-sign {
-  margin-top: 8px;
-  font-family: 'Oswald', sans-serif;
-  font-size: 0.82rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-mute);
-}
-
 /* ---------- Ranking table (Stege) ---------- */
 
 .ladder-table {
