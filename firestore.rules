@@ -1,0 +1,17 @@
+rules_version = '2';
+
+// Öppen läsning för alla. Inga skrivningar från klienten — matcher,
+// spelare och ångringar går via Cloud Functions (se functions/index.js)
+// så att Elo-uträkningen inte kan manipuleras från webbläsaren.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /players/{playerId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /matches/{matchId} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

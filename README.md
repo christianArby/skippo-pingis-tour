@@ -1,120 +1,67 @@
 # 🏓 Pingisstegen
 
-Kontorets pingisstege. Statisk frontend (HTML/CSS/JS) hostas på GitHub Pages, Supabase är backend för data + realtime.
+Kontorets pingisstege. Statisk frontend (HTML/CSS/JS) hostas på GitHub Pages, Firebase (Firestore + Cloud Functions) är backend.
 
 - **Stege** med Elo-rating (start 1000, K=32)
 - **Öppen rapportering** — vem som helst kan logga en match mellan vilka två spelare som helst
-- **Live-uppdatering** via Supabase Realtime
+- **Live-uppdatering** via Firestore-snapshots
 - **Ingen bundler, ingen build** — bara push och kör
+
+## Arkitektur
+
+- **Firestore** (`europe-west1`) har två samlingar, `players` och `matches`. Klienten får bara *läsa* (`firestore.rules`).
+- **Cloud Functions** (`functions/index.js`, `europe-west1`) står för alla skrivningar:
+  - `addPlayer` — ny spelare med unikt namn
+  - `reportMatch` — räknar Elo i en transaktion, sparar matchen och postar till Slack
+  - `undoMatch` — ångrar senaste matchen (max 5 min gammal)
+- Cloud Functions kräver **Blaze-planen** (pay-as-you-go). Med kontorsvolymer kostar det i praktiken 0 kr.
 
 ## Kom igång
 
-### 1. Skapa Supabase-projekt
+Firebase-projektet är `pingis-ladder-fca5b` (se `.firebaserc`). Webbappens config ligger i `window.FIREBASE_CONFIG` i [`index.html`](index.html) — den är publik, åtkomsten styrs av rules.
 
-1. Gå till <https://supabase.com> → New project. Välj region nära kontoret.
-2. När projektet är klart, gå till **Settings → API** och kopiera:
-   - **Project URL** (`https://xxxx.supabase.co`)
-   - **anon public** API key
-
-> Anon-nyckeln är säker att exponera publikt — RLS i `schema.sql` styr vad anonyma användare får göra.
-
-### 2. Kör schemat
-
-I Supabase Studio: **SQL Editor → New query** → klistra in innehållet i [`supabase/schema.sql`](supabase/schema.sql) → **Run**.
-
-Det skapar tabellerna `players` och `matches`, Elo-triggern, RLS-policies och realtime-prenumeration.
-
-### 3. Koppla appen till Supabase
-
-Öppna [`index.html`](index.html) och byt ut värdena i `window.SUPABASE_CONFIG`:
-
-```html
-<script>
-  window.SUPABASE_CONFIG = {
-    url:     'https://your-project.supabase.co',
-    anonKey: 'eyJhbGc...'
-  };
-</script>
-```
-
-(Se [`.env.example`](.env.example) för var värdena hör hemma.)
-
-### 4. Kör lokalt
+### Deploya backend
 
 ```bash
-cd pingis-ladder
-python3 -m http.server 8000
-# eller: npx serve .
+cd functions && npm install && cd ..
+firebase functions:secrets:set SLACK_WEBHOOK_URL   # Slack Incoming Webhook för #pingis
+firebase deploy --only firestore,functions
 ```
 
-Öppna <http://localhost:8000>. Lägg till två spelare → rapportera en match → kolla att stegen och historiken uppdateras.
+### Kör lokalt
 
-### 5. Deploya till GitHub Pages
+```bash
+python3 -m http.server 8000
+```
+
+Öppna <http://localhost:8000>. Lokalt pratar sidan med produktionsdatabasen. För att testa backend-ändringar, kör `firebase emulators:start --only functions,firestore` (lägg en dummy-webhook i `functions/.secret.local`).
+
+### Deploya frontend till GitHub Pages
 
 1. Pusha repot till GitHub.
 2. **Settings → Pages → Build and deployment → Source: Deploy from a branch** → välj `main` och `/` (root).
-3. Vänta ~30 s. Appen ligger på `https://<user>.github.io/<repo>/`.
 
 ## Importera spelare från Slack
 
-Stegen kan populeras automatiskt från Slack-workspacens medlemslista, med rätta förnamn och profilbilder.
+Stegen kan populeras från Slack-workspacens medlemslista, med förnamn och profilbilder.
 
-### 1. Migrera schemat
-
-Kör i Supabase SQL Editor:
-```sql
-alter table players add column if not exists slack_id text;
-alter table players add column if not exists avatar_url text;
-do $$
-begin
-  if not exists (select 1 from pg_constraint where conname = 'players_slack_id_key') then
-    alter table players add constraint players_slack_id_key unique (slack_id);
-  end if;
-end $$;
-```
-
-### 2. Skapa Slack-app + token
-
-1. Gå till <https://api.slack.com/apps> → **Create New App** → **From scratch**.
-2. Namn: "Pingisstegen import". Workspace: din Skippo-workspace.
-3. Vänster meny → **OAuth & Permissions** → under **Scopes → Bot Token Scopes** → **Add an OAuth Scope** → `users:read`.
-4. Rulla upp → **Install to Workspace** → bekräfta.
-5. Kopiera **Bot User OAuth Token** (börjar med `xoxb-`).
-
-### 3. Hämta Supabase service role-nyckel
-
-Supabase Studio → **Project Settings → API → service_role secret**. Aldrig lägg den i webbappen — bara lokalt för det här skriptet.
-
-### 4. Kör importen
+1. Slack-app med Bot Token Scope `users:read`, installerad i workspacen → kopiera **Bot User OAuth Token** (`xoxb-…`).
+2. Firebase-konsolen → **Project settings → Service accounts → Generate new private key**. Spara utanför repot.
+3. Kör:
 
 ```bash
-cd pingis-ladder
+(cd functions && npm install)
 SLACK_BOT_TOKEN=xoxb-... \
-SUPABASE_URL=https://your-project.supabase.co \
-SUPABASE_SERVICE_ROLE=eyJ... \
+GOOGLE_APPLICATION_CREDENTIALS=~/pingis-sa.json \
 node scripts/import-slack.mjs
 ```
 
-Skriptet:
-- Hämtar alla Slack-medlemmar (paginerat)
-- Filtrerar bort bots, Slackbot, deaktiverade konton
-- Föredrar förnamn (sedan display name, sedan real name)
-- Upsertar på `slack_id` så omkörningar är säkra — befintliga ratings/wins/losses rörs inte
-- Hanterar namnkonflikter med suffix (`Anna`, `Anna 2`, …)
-
-Kör det igen när nya personer börjar.
+Skriptet upsertar på `slack_id` (ratings/wins/losses rörs inte) och suffixar dubblettnamn (`Anna`, `Anna 2`, …). Kör det igen när nya personer börjar.
 
 ## Slack-notiser i #pingis
 
-När en match rapporteras postas resultatet + aktuell topp-5 till #pingis-kanalen i Slack — drivs av en `pg_net`-baserad trigger på `matches`-tabellen.
+När en match rapporteras postar `reportMatch` resultatet + aktuell topp-5 till #pingis via webhooken i secret `SLACK_WEBHOOK_URL`. Ett Slack-fel loggas men stoppar aldrig själva rapporteringen. Ångrade matcher skickar ingen notis.
 
-### Setup
-
-1. https://api.slack.com/apps → din app → **Incoming Webhooks** → toggla **On** → **Add New Webhook to Workspace** → välj **#pingis** → kopiera webhook-URL.
-2. I `supabase/schema.sql`, ersätt placeholder-URL:en `https://hooks.slack.com/services/REPLACE/WITH/YOUR_URL` i `notify_slack_match()`-funktionen.
-3. Kör hela `schema.sql` (eller bara `notify_slack_match`-blocket) i Supabase SQL Editor.
-
-Slack-meddelandet ser ut såhär:
 ```
 🏓 Christian def. Felix  (+16 / −16 Elo)
 
@@ -123,8 +70,6 @@ Aktuell topp 5
 2. Bosse — 1198 Elo  (10V-5F)
 ...
 ```
-
-Ångrade matcher (via `undo_match` RPC) skickar ingen notis — triggern fyrar bara på INSERT.
 
 ## Hur Elo funkar
 
@@ -137,44 +82,39 @@ delta           = round(32 * (1 - expected_winner))
 
 Med K=32: två jämna spelare → ~±16 per match. Stor underdog som vinner → kan få +30. Stor favorit som vinner → kanske bara +6.
 
-Uträkningen körs i en Postgres-trigger (`update_elo_after_match`) med radlås, så två samtidiga rapporter inte korruperar ratings.
+Uträkningen körs i `reportMatch` i en Firestore-transaktion, så två samtidiga rapporter inte korrumperar ratings.
 
 ## Felrapporterad match? Trasig spelare?
 
-Klienten får bara läsa och skapa. **Korrigeringar gör du manuellt i Supabase Studio:**
+Klienten får bara läsa. **Korrigeringar gör du manuellt i Firebase-konsolen → Firestore:**
 
-- **Byt namn på spelare**: `Table Editor → players → ändra name`.
-- **Radera en felaktig match**: `Table Editor → matches → radera raden` (du måste sedan manuellt justera vinnaren/förlorarens rating/wins/losses, eftersom triggern bara körs vid insert).
-- **Återställ allt**: `truncate matches; update players set rating=1000, wins=0, losses=0;` i SQL Editor.
+- **Byt namn på spelare**: ändra `name` på dokumentet i `players`.
+- **Radera en felaktig match**: radera dokumentet i `matches` och justera vinnarens/förlorarens `rating`/`wins`/`losses` för hand.
 
 ## Filstruktur
 
 ```
 pingis-ladder/
-├── index.html               # Tre vyer, sätter window.SUPABASE_CONFIG
+├── index.html               # Vyer, sätter window.FIREBASE_CONFIG
 ├── css/styles.css
 ├── js/
-│   ├── config.js            # Läser window.SUPABASE_CONFIG
-│   ├── supabase.js          # Skapar supabase-klienten (ESM från esm.sh)
+│   ├── config.js            # Läser window.FIREBASE_CONFIG
+│   ├── firebase.js          # Firestore-läsning, callables, realtime (ESM från gstatic)
 │   ├── app.js               # Vy-router, realtime
-│   ├── ladder.js
-│   ├── report.js
-│   ├── history.js
-│   ├── players.js
+│   ├── ladder.js / report.js / history.js / players.js / rules.js
 │   └── elo.js               # Klient-preview av Elo-delta
-├── supabase/schema.sql      # Tabeller, trigger, RLS, realtime, undo_match RPC
-├── scripts/
-│   └── import-slack.mjs     # Engångs-/ad-hoc-import av Slack-medlemmar
-├── assets/skippo-logo.svg
-└── .env.example             # Dokumentation (ej använd vid runtime)
+├── functions/index.js       # addPlayer, reportMatch, undoMatch, Slack-notis
+├── firestore.rules          # Publik läsning, inga klient-skrivningar
+├── firebase.json / .firebaserc
+├── scripts/import-slack.mjs # Ad-hoc-import av Slack-medlemmar
+└── assets/skippo-logo.svg
 ```
 
 ## Stack
 
 - HTML/CSS/Vanilla JS (ES modules)
-- [`@supabase/supabase-js`](https://supabase.com/docs/reference/javascript) v2 via [esm.sh](https://esm.sh)
-- Google Fonts: Bowlby One + Space Grotesk
-- Postgres + Row Level Security + Realtime (Supabase)
+- Firebase JS SDK v10 via gstatic CDN
+- Firestore + Cloud Functions (Node 22)
 
 ---
 

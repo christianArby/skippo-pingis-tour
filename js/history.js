@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { fetchPlayers, fetchRecentMatches } from './firebase.js';
 
 const HISTORY_LIMIT = 50;
 
@@ -7,19 +7,19 @@ export async function render() {
   const empty = document.getElementById('history-empty');
   if (!root) return;
 
-  const { data, error } = await supabase
-    .from('matches')
-    .select(`
-      id, played_at,
-      winner_rating_before, winner_rating_after,
-      loser_rating_before,  loser_rating_after,
-      winner:players!matches_winner_id_fkey ( id, name, avatar_url ),
-      loser:players!matches_loser_id_fkey   ( id, name, avatar_url )
-    `)
-    .order('played_at', { ascending: false })
-    .limit(HISTORY_LIMIT);
-
-  if (error) {
+  let data;
+  try {
+    const [matches, players] = await Promise.all([
+      fetchRecentMatches(HISTORY_LIMIT),
+      fetchPlayers(),
+    ]);
+    const byId = new Map(players.map((p) => [p.id, p]));
+    data = matches.map((m) => ({
+      ...m,
+      winner: byId.get(m.winner_id) ?? null,
+      loser: byId.get(m.loser_id) ?? null,
+    }));
+  } catch (error) {
     root.innerHTML = `<li class="error-row">Kunde inte hämta historik: ${escapeHtml(error.message)}</li>`;
     empty.hidden = true;
     return;

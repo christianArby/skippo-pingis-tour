@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { fetchPlayers } from './firebase.js';
 import { invalidatePlayerCache } from './players.js';
 
 export async function render() {
@@ -7,13 +7,10 @@ export async function render() {
   if (!root) return;
 
   invalidatePlayerCache();
-  const { data, error } = await supabase
-    .from('players')
-    .select('*')
-    .order('rating', { ascending: false })
-    .order('name', { ascending: true });
-
-  if (error) {
+  let data;
+  try {
+    data = await fetchPlayers();
+  } catch (error) {
     root.innerHTML = `<li class="error-row">Kunde inte hämta stegen: ${escapeHtml(error.message)}</li>`;
     empty.hidden = true;
     return;

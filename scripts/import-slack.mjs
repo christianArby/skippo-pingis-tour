@@ -1,29 +1,38 @@
 #!/usr/bin/env node
-// Importera Slack-användare → Supabase players-tabellen.
+// Importera Slack-användare → Firestore players-samlingen.
 //
 // Krav:
 //   - Node 18+ (för inbyggd fetch)
+//   - `npm install` i functions/ (skriptet lånar firebase-admin därifrån)
 //   - SLACK_BOT_TOKEN  — Bot User OAuth Token från api.slack.com (scope: users:read)
-//   - SUPABASE_URL     — t.ex. https://xxxx.supabase.co
-//   - SUPABASE_SERVICE_ROLE — service role key (NEVER bundla i webbappen; bara lokalt!)
+//   - GOOGLE_APPLICATION_CREDENTIALS — sökväg till en service account-nyckel
+//     (Firebase-konsolen → Project settings → Service accounts → Generate new
+//     private key). NEVER committa den; bara lokalt!
 //
 // Kör:
 //   SLACK_BOT_TOKEN=xoxb-... \
-//   SUPABASE_URL=https://xxxx.supabase.co \
-//   SUPABASE_SERVICE_ROLE=eyJ... \
+//   GOOGLE_APPLICATION_CREDENTIALS=~/pingis-sa.json \
 //   node scripts/import-slack.mjs
 //
 // Skriptet är idempotent: kör så ofta du vill, befintliga spelare
 // uppdateras på slack_id-matchning.
 
-const SLACK_TOKEN  = process.env.SLACK_BOT_TOKEN;
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE;
+import { createRequire } from 'node:module';
 
-if (!SLACK_TOKEN || !SUPABASE_URL || !SERVICE_KEY) {
+const require = createRequire(new URL('../functions/package.json', import.meta.url));
+const { initializeApp, applicationDefault } = require('firebase-admin/app');
+const { getFirestore, Timestamp } = require('firebase-admin/firestore');
+
+const SLACK_TOKEN  = process.env.SLACK_BOT_TOKEN;
+const PROJECT_ID   = process.env.FIREBASE_PROJECT_ID ?? 'pingis-ladder-fca5b';
+
+if (!SLACK_TOKEN || !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
   console.error('Saknar env-variabler. Se kommentaren högst upp.');
   process.exit(1);
 }
+
+initializeApp({ credential: applicationDefault(), projectId: PROJECT_ID });
+const db = getFirestore();
 
 const PAGE_SIZE = 200;
 
@@ -102,42 +111,30 @@ function toPlayerRow(u) {
   };
 }
 
-// ---------- Upsert till Supabase ----------
+// ---------- Upsert till Firestore ----------
 
 async function upsertPlayer(row) {
-  const url = new URL(`${SUPABASE_URL}/rest/v1/players`);
-  url.searchParams.set('on_conflict', 'slack_id');
-  // Bara uppdatera dessa fält vid konflikt — rör inte rating/wins/losses
-  url.searchParams.set('columns', 'slack_id,name,avatar_url');
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      apikey: SERVICE_KEY,
-      Authorization: `Bearer ${SERVICE_KEY}`,
-      'Content-Type': 'application/json',
-      Prefer: 'resolution=merge-duplicates,return=minimal',
-    },
-    body: JSON.stringify(row),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`HTTP ${res.status}: ${text}`);
+  const existing = await db.collection('players').where('slack_id', '==', row.slack_id).limit(1).get();
+  if (!existing.empty) {
+    // Bara uppdatera dessa fält — rör inte rating/wins/losses
+    await existing.docs[0].ref.update({ name: row.name, avatar_url: row.avatar_url });
+    return;
   }
+  await db.collection('players').add({
+    ...row,
+    rating: 1000,
+    wins: 0,
+    losses: 0,
+    created_at: Timestamp.now(),
+  });
 }
 
 // Hantera namnkonflikter: om en player redan finns med samma namn men annat
 // slack_id (eller utan slack_id), suffixa Slack-importens namn så vi inte
-// kraschar på players.name unique-constraint.
+// får två spelare med samma namn.
 async function fetchExistingNames() {
-  const url = new URL(`${SUPABASE_URL}/rest/v1/players`);
-  url.searchParams.set('select', 'name,slack_id');
-  const res = await fetch(url, {
-    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` },
-  });
-  if (!res.ok) throw new Error(`Kunde inte hämta befintliga spelare: ${res.status}`);
-  return res.json();
+  const snap = await db.collection('players').get();
+  return snap.docs.map((d) => ({ name: d.get('name'), slack_id: d.get('slack_id') ?? null }));
 }
 
 function dedupeNames(rows, existing) {

@@ -1,5 +1,5 @@
-// Klient-preview av Elo-delta. Den faktiska uträkningen sker i Postgres
-// (update_elo_after_match-triggern), så detta är bara för att visa
+// Klient-preview av Elo-delta. Den faktiska uträkningen sker i Cloud
+// Functions (reportMatch i functions/index.js), så detta är bara för att visa
 // "+12 / −12"-känsla innan rapportering.
 
 const K = 32;

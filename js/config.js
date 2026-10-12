@@ -1,20 +1,13 @@
-const cfg = globalThis.SUPABASE_CONFIG;
+const cfg = globalThis.FIREBASE_CONFIG;
 
-if (!cfg || !cfg.url || !cfg.anonKey) {
+if (!cfg || !cfg.apiKey || !cfg.projectId) {
   throw new Error(
-    'SUPABASE_CONFIG saknas. Sätt window.SUPABASE_CONFIG i index.html ' +
-    'med { url, anonKey } innan modulerna laddas.'
+    'FIREBASE_CONFIG saknas. Sätt window.FIREBASE_CONFIG i index.html ' +
+    'med { apiKey, authDomain, projectId, appId } innan modulerna laddas.'
   );
 }
 
-if (cfg.url.includes('your-project') || cfg.anonKey.startsWith('eyJhbGc...')) {
-  throw new Error(
-    'SUPABASE_CONFIG innehåller placeholder-värden. ' +
-    'Byt ut url och anonKey i index.html mot dina riktiga Supabase-värden.'
-  );
-}
+export const FIREBASE_CONFIG = Object.freeze({ ...cfg });
 
-export const SUPABASE_CONFIG = Object.freeze({
-  url: cfg.url,
-  anonKey: cfg.anonKey,
-});
+// Samma region som functions/index.js
+export const FUNCTIONS_REGION = 'europe-west1';

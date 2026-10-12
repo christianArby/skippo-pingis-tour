@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { reportMatch, undoMatch as undoMatchRemote } from './firebase.js';
 import { getPlayers, openAddPlayerDialog, invalidatePlayerCache } from './players.js';
 import { previewDelta } from './elo.js';
 
@@ -73,17 +73,15 @@ export async function render() {
     const loserId = winnerId === aId ? bId : aId;
 
     setBusy(true);
-    const { data, error } = await supabase
-      .from('matches')
-      .insert({ winner_id: winnerId, loser_id: loserId })
-      .select()
-      .single();
-    setBusy(false);
-
-    if (error) {
+    let data;
+    try {
+      data = await reportMatch(winnerId, loserId);
+    } catch (error) {
       statusEl.dataset.tone = 'error';
       statusEl.textContent = `Kunde inte spara: ${error.message}`;
       return;
+    } finally {
+      setBusy(false);
     }
 
     const winner = players.find((p) => p.id === winnerId);
@@ -237,9 +235,9 @@ function showMatchResult({ matchId, winnerName, loserName, winnerAvatar, loserAv
     footnote.dataset.tone = '';
     footnote.textContent = 'Ångrar matchen…';
 
-    const { error } = await supabase.rpc('undo_match', { p_match_id: matchId });
-
-    if (error) {
+    try {
+      await undoMatchRemote(matchId);
+    } catch (error) {
       undoBtn.disabled = false;
       goBtn.disabled = false;
       footnote.dataset.tone = 'error';

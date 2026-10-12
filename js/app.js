@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { subscribePlayers, subscribeMatches } from './firebase.js';
 import * as ladder from './ladder.js';
 import * as report from './report.js';
 import * as historyView from './history.js';
@@ -76,25 +76,18 @@ function bindGlobalUI() {
 }
 
 function subscribeRealtime() {
-  const channel = supabase.channel('pingis-ladder-live');
+  subscribePlayers(() => {
+    invalidatePlayerCache();
+    const view = currentView();
+    if (view === 'ladder') VIEWS[view].render();
+    if (isReportDialogOpen()) report.render();
+  });
 
-  channel
-    .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'players' },
-        () => {
-          invalidatePlayerCache();
-          const view = currentView();
-          if (view === 'ladder') VIEWS[view].render();
-          if (isReportDialogOpen()) report.render();
-        })
-    .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'matches' },
-        () => {
-          invalidatePlayerCache();
-          const view = currentView();
-          if (view === 'ladder' || view === 'history') VIEWS[view].render();
-        })
-    .subscribe();
+  subscribeMatches(() => {
+    invalidatePlayerCache();
+    const view = currentView();
+    if (view === 'ladder' || view === 'history') VIEWS[view].render();
+  });
 }
 
 async function boot() {

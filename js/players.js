@@ -1,15 +1,10 @@
-import { supabase } from './supabase.js';
+import { fetchPlayers, addPlayer as addPlayerRemote } from './firebase.js';
 
 let cachedPlayers = null;
 
 export async function getPlayers({ forceRefresh = false } = {}) {
   if (cachedPlayers && !forceRefresh) return cachedPlayers;
-  const { data, error } = await supabase
-    .from('players')
-    .select('*')
-    .order('rating', { ascending: false });
-  if (error) throw error;
-  cachedPlayers = data ?? [];
+  cachedPlayers = await fetchPlayers();
   return cachedPlayers;
 }
 
@@ -22,20 +17,10 @@ export async function addPlayer(name) {
   if (!trimmed) throw new Error('Namnet får inte vara tomt.');
   if (trimmed.length > 40) throw new Error('Namnet får vara max 40 tecken.');
 
-  const { data, error } = await supabase
-    .from('players')
-    .insert({ name: trimmed })
-    .select()
-    .single();
-
-  if (error) {
-    if (error.code === '23505') {
-      throw new Error(`Det finns redan en spelare som heter "${trimmed}".`);
-    }
-    throw error;
-  }
+  // Funktionen kollar unika namn och returnerar en svensk felbeskrivning
+  const player = await addPlayerRemote(trimmed);
   invalidatePlayerCache();
-  return data;
+  return player;
 }
 
 // ---------- Dialog UI ----------

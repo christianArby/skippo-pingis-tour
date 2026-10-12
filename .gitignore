@@ -4,3 +4,9 @@
 .idea/
 .vscode/
 node_modules/
+
+# Firebase
+functions/node_modules/
+.firebase/
+*-debug.log
+functions/.secret.local
