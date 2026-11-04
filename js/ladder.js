@@ -9,7 +9,9 @@ export async function render() {
   invalidatePlayerCache();
   let data;
   try {
-    data = await fetchPlayers();
+    // Only show players who have played at least one match. Players with no
+    // matches are still selectable as opponents (see players.js).
+    data = (await fetchPlayers()).filter((p) => (p.wins ?? 0) + (p.losses ?? 0) > 0);
   } catch (error) {
     root.innerHTML = `<li class="error-row">Kunde inte hämta stegen: ${escapeHtml(error.message)}</li>`;
     empty.hidden = true;
