@@ -6,6 +6,7 @@ import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { setGlobalOptions, logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
+import { createHash, timingSafeEqual } from 'node:crypto';
 
 initializeApp();
 const db = getFirestore();
@@ -14,8 +15,17 @@ setGlobalOptions({ region: 'europe-west1', maxInstances: 5 });
 
 // Sätts med: firebase functions:secrets:set SLACK_WEBHOOK_URL
 const SLACK_WEBHOOK_URL = defineSecret('SLACK_WEBHOOK_URL');
+// Lösenord för att ändra Elo-inställningar. Sätts med:
+//   firebase functions:secrets:set ELO_ADMIN_PASSWORD
+const ELO_ADMIN_PASSWORD = defineSecret('ELO_ADMIN_PASSWORD');
 
-const K_FACTOR = 32;
+// Elo-inställningarna ligger i settings/elo (publik läsning). Saknas
+// dokumentet används standardvärdena nedan.
+const ELO_SETTINGS_REF = () => db.collection('settings').doc('elo');
+const DEFAULT_K_FACTOR = 32;
+const DEFAULT_SCALE = 400;
+const K_RANGE = [1, 200];
+const SCALE_RANGE = [50, 2000];
 const START_RATING = 1000;
 const UNDO_WINDOW_SEC = 300;
 const LADDER_URL = 'https://christianarby.github.io/skippo-pingis-tour/';
@@ -68,14 +78,15 @@ export const reportMatch = onCall({ secrets: [SLACK_WEBHOOK_URL] }, async (reque
   const matchRef = db.collection('matches').doc();
 
   const match = await db.runTransaction(async (tx) => {
-    const [winnerSnap, loserSnap] = await tx.getAll(winnerRef, loserRef);
+    const [winnerSnap, loserSnap, settingsSnap] = await tx.getAll(winnerRef, loserRef, ELO_SETTINGS_REF());
     if (!winnerSnap.exists) throw new HttpsError('not-found', `Vinnaren ${winnerId} finns inte`);
     if (!loserSnap.exists) throw new HttpsError('not-found', `Förloraren ${loserId} finns inte`);
 
     const winner = winnerSnap.data();
     const loser = loserSnap.data();
-    const expectedWin = 1 / (1 + Math.pow(10, (loser.rating - winner.rating) / 400));
-    const delta = Math.round(K_FACTOR * (1 - expectedWin));
+    const { k, scale } = readEloSettings(settingsSnap);
+    const expectedWin = 1 / (1 + Math.pow(10, (loser.rating - winner.rating) / scale));
+    const delta = Math.round(k * (1 - expectedWin));
 
     const m = {
       winner_id: winnerId,
@@ -103,6 +114,46 @@ export const reportMatch = onCall({ secrets: [SLACK_WEBHOOK_URL] }, async (reque
   const { winner_name, loser_name, ...stored } = match;
   return { id: matchRef.id, ...stored, played_at: stored.played_at.toDate().toISOString() };
 });
+
+// =====================================================================
+// updateEloSettings: ändra K-faktor och skalfaktor (kräver lösenord)
+// Påverkar bara matcher som rapporteras efteråt — inget räknas om.
+// =====================================================================
+
+export const updateEloSettings = onCall({ secrets: [ELO_ADMIN_PASSWORD] }, async (request) => {
+  const password = String(request.data?.password ?? '');
+  if (!passwordMatches(password, ELO_ADMIN_PASSWORD.value())) {
+    throw new HttpsError('permission-denied', 'Fel lösenord.');
+  }
+
+  const k = Number(request.data?.k);
+  const scale = Number(request.data?.scale);
+  if (!Number.isInteger(k) || k < K_RANGE[0] || k > K_RANGE[1]) {
+    throw new HttpsError('invalid-argument', `K-faktorn måste vara ett heltal mellan ${K_RANGE[0]} och ${K_RANGE[1]}.`);
+  }
+  if (!Number.isInteger(scale) || scale < SCALE_RANGE[0] || scale > SCALE_RANGE[1]) {
+    throw new HttpsError('invalid-argument', `Skalfaktorn måste vara ett heltal mellan ${SCALE_RANGE[0]} och ${SCALE_RANGE[1]}.`);
+  }
+
+  await ELO_SETTINGS_REF().set({ k, scale, updated_at: Timestamp.now() });
+  logger.info('Elo-inställningar ändrade', { k, scale });
+  return { k, scale };
+});
+
+function readEloSettings(snap) {
+  const d = snap?.exists ? snap.data() : {};
+  const k = Number.isFinite(d.k) ? d.k : DEFAULT_K_FACTOR;
+  const scale = Number.isFinite(d.scale) && d.scale > 0 ? d.scale : DEFAULT_SCALE;
+  return { k, scale };
+}
+
+// Jämför via SHA-256 så att timingSafeEqual får lika långa buffrar.
+function passwordMatches(given, expected) {
+  if (!expected || !given) return false;
+  const a = createHash('sha256').update(given).digest();
+  const b = createHash('sha256').update(expected).digest();
+  return timingSafeEqual(a, b);
+}
 
 // =====================================================================
 // undoMatch: ångra senaste matchen

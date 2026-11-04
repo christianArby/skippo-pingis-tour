@@ -2,7 +2,7 @@
 
 Kontorets pingisstege. Statisk frontend (HTML/CSS/JS) hostas på GitHub Pages, Firebase (Firestore + Cloud Functions) är backend.
 
-- **Stege** med Elo-rating (start 1000, K=32)
+- **Stege** med Elo-rating (start 1000, K=32, skalfaktor 400 — justerbart under Rules)
 - **Öppen rapportering** — vem som helst kan logga en match mellan vilka två spelare som helst
 - **Live-uppdatering** via Firestore-snapshots
 - **Ingen bundler, ingen build** — bara push och kör
@@ -25,6 +25,7 @@ Firebase-projektet är `pingis-ladder-fca5b` (se `.firebaserc`). Webbappens conf
 ```bash
 cd functions && npm install && cd ..
 firebase functions:secrets:set SLACK_WEBHOOK_URL   # Slack Incoming Webhook för #pingis
+firebase functions:secrets:set ELO_ADMIN_PASSWORD  # Lösenord för att ändra Elo-inställningar
 firebase deploy --only firestore,functions
 ```
 
@@ -81,6 +82,10 @@ delta           = round(32 * (1 - expected_winner))
 ```
 
 Med K=32: två jämna spelare → ~±16 per match. Stor underdog som vinner → kan få +30. Stor favorit som vinner → kanske bara +6.
+
+### Ändra K-faktor och skalfaktor
+
+Under **Rules → Elo-inställningar** kan vem som helst testa andra värden och se vad en vinst ger vid olika ratingskillnader. För att spara krävs lösenordet i secret `ELO_ADMIN_PASSWORD`. Värdena sparas i `settings/elo` i Firestore och gäller från nästa rapporterade match — redan spelade matcher räknas inte om. Saknas dokumentet gäller K=32 och skalfaktor 400.
 
 Uträkningen körs i `reportMatch` i en Firestore-transaktion, så två samtidiga rapporter inte korrumperar ratings.
 

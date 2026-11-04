@@ -945,3 +945,71 @@ dialog::backdrop { background: rgba(0, 37, 76, 0.55); }
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.72);
 }
+
+/* ---------- Elo-inställningar ---------- */
+
+.elo-body { padding: 16px 24px 20px; }
+.elo-current { margin: 0 0 10px; color: var(--ink); }
+.elo-help { margin: 0 0 8px; color: var(--ink-soft); font-size: 0.9rem; line-height: 1.5; }
+
+.elo-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 14px;
+}
+.elo-field { display: flex; flex-direction: column; gap: 4px; }
+.elo-field span {
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.elo-field input {
+  font: inherit;
+  width: 120px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  background: var(--paper);
+  color: var(--ink);
+}
+.elo-field input[type="password"] { width: 180px; }
+.elo-field input:focus { outline: 2px solid var(--navy); outline-offset: 1px; }
+
+.elo-table-wrap { flex-basis: 100%; overflow-x: auto; }
+.elo-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  font-feature-settings: 'tnum' 1;
+}
+.elo-table th, .elo-table td {
+  text-align: right;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.elo-table th:first-child, .elo-table td:first-child { text-align: left; }
+.elo-table th {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 500;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.elo-table td { font-weight: 600; color: var(--navy); }
+.elo-was { font-weight: 400; color: var(--ink-mute); }
+.elo-invalid { text-align: left !important; color: var(--red) !important; font-weight: 500; }
+
+.elo-form > .elo-help { flex-basis: 100%; margin: 0; }
+.elo-save { display: flex; align-items: flex-end; gap: 12px; flex-basis: 100%; padding-top: 6px; }
+.elo-form > .status { flex-basis: 100%; margin: 0; }
+
+@media (max-width: 560px) {
+  .elo-body { padding: 14px 16px 16px; }
+  .elo-table th, .elo-table td { padding: 7px 6px; }
+}

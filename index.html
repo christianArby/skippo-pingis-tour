@@ -105,7 +105,7 @@
 
           <article class="rule-block">
             <h3>Rankning</h3>
-            <p>Alla startar på <strong>1000 Elo</strong>. Vid jämn match ger en vinst <strong>±16 poäng</strong>. Slår du någon med högre rating får du mer — vinner du mot någon lägre får du mindre. Förluster mot underdogs straffar hårdare än förluster mot favoriter.</p>
+            <p>Alla startar på <strong>1000 Elo</strong>. Vid jämn match ger en vinst <strong id="rule-even-delta">±16 poäng</strong>. Slår du någon med högre rating får du mer — vinner du mot någon lägre får du mindre. Förluster mot underdogs straffar hårdare än förluster mot favoriter.</p>
           </article>
 
           <article class="rule-block">
@@ -141,6 +141,53 @@
             <p>Det här är kontoret. Hög intensitet är välkommen, men håll det sportsligt — inga elaka kommentarer, ingen mobil under match, inget gnäll på domarbeslut (det finns inga domare). Skaka hand efteråt.</p>
           </article>
 
+        </div>
+      </div>
+
+      <div class="card" id="elo-settings">
+        <div class="card-header">
+          <h2>Elo-inställningar</h2>
+        </div>
+        <div class="elo-body">
+          <p class="elo-current">Just nu gäller <strong>K = <span id="elo-current-k">32</span></strong> och <strong>skalfaktor = <span id="elo-current-scale">400</span></strong>.</p>
+          <p class="elo-help"><strong>K</strong> styr hur många poäng en match kan ge, max K och ±K/2 vid jämn match. <strong>Skalfaktorn</strong> styr hur mycket ratingskillnaden betyder. Lägre skalfaktor ger större skillnad mellan att slå en favorit och en underdog.</p>
+          <p class="elo-help">Testa egna värden nedan och se vad de ger. Bara den med lösenordet kan spara.</p>
+
+          <form id="elo-form" class="elo-form" novalidate>
+            <label class="elo-field">
+              <span>K-faktor</span>
+              <input id="elo-k" type="number" inputmode="numeric" min="1" max="200" step="1" />
+            </label>
+            <label class="elo-field">
+              <span>Skalfaktor</span>
+              <input id="elo-scale" type="number" inputmode="numeric" min="50" max="2000" step="1" />
+            </label>
+            <button id="elo-reset" type="button" class="btn btn--ghost">Återställ</button>
+
+            <div class="elo-table-wrap">
+              <table class="elo-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Ratingskillnad</th>
+                    <th scope="col">Favoritens vinstchans</th>
+                    <th scope="col">Favoriten vinner</th>
+                    <th scope="col">Underdogen vinner</th>
+                  </tr>
+                </thead>
+                <tbody id="elo-table-body"></tbody>
+              </table>
+            </div>
+            <p id="elo-diff-note" class="elo-help" hidden>Värdet inom parentes är vad det ger med nuvarande inställningar.</p>
+
+            <div class="elo-save">
+              <label class="elo-field">
+                <span>Lösenord</span>
+                <input id="elo-password" type="password" autocomplete="current-password" />
+              </label>
+              <button id="elo-save" type="submit" class="btn btn--primary">Spara</button>
+            </div>
+            <p id="elo-status" class="status" data-tone="" aria-live="polite"></p>
+          </form>
         </div>
       </div>
     </section>

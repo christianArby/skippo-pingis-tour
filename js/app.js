@@ -1,4 +1,5 @@
-import { subscribePlayers, subscribeMatches } from './firebase.js';
+import { subscribePlayers, subscribeMatches, subscribeEloSettings } from './firebase.js';
+import { setEloSettings } from './elo.js';
 import * as ladder from './ladder.js';
 import * as report from './report.js';
 import * as historyView from './history.js';
@@ -80,6 +81,14 @@ function subscribeRealtime() {
     invalidatePlayerCache();
     const view = currentView();
     if (view === 'ladder') VIEWS[view].render();
+    if (isReportDialogOpen()) report.render();
+  });
+
+  // Elo-inställningar: påverkar förhandsvisningen i rapport-dialogen och
+  // Rules-vyn. Första snapshoten levereras direkt med nuvarande värden.
+  subscribeEloSettings((data) => {
+    setEloSettings(data);
+    rulesView.onSettingsChanged();
     if (isReportDialogOpen()) report.render();
   });
 

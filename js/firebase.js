@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {
-  getFirestore, collection, query, orderBy, limit, getDocs, onSnapshot,
+  getFirestore, collection, doc, query, orderBy, limit, getDocs, onSnapshot,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import {
   getFunctions, httpsCallable,
@@ -56,6 +56,8 @@ async function call(name, data) {
 export const addPlayer   = (name)               => call('addPlayer',   { name });
 export const reportMatch = (winnerId, loserId)  => call('reportMatch', { winnerId, loserId });
 export const undoMatch   = (matchId)            => call('undoMatch',   { matchId });
+export const updateEloSettings = (password, k, scale) =>
+  call('updateEloSettings', { password, k, scale });
 
 // ---------- Realtime ----------
 
@@ -75,4 +77,12 @@ export function subscribePlayers(callback) {
 
 export function subscribeMatches(callback) {
   return onChange(query(collection(db, 'matches'), orderBy('played_at', 'desc'), limit(50)), callback);
+}
+
+// Elo-inställningar (settings/elo). Till skillnad från onChange levereras
+// även första snapshoten, så anroparen får nuvarande värden direkt.
+export function subscribeEloSettings(callback) {
+  return onSnapshot(doc(db, 'settings', 'elo'), (snap) => {
+    callback(snap.exists() ? snap.data() : null);
+  }, (err) => console.error('Realtime-fel (elo-inställningar):', err));
 }
